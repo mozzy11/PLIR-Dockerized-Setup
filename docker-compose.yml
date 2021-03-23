@@ -1,5 +1,4 @@
 version: '2.1'
-
 services:
   openmrs-referenceapplication-mysql:
     restart: "always"
@@ -19,11 +18,11 @@ services:
       - openmrs-referenceapplication-mysql-data:/var/lib/mysql
       - ./volumes/mysql.cnf:/etc/mysql/conf.d/custom.cnf  # mysql config preconfigured to allow binlog/debezium
       #- ./data:/var/lib/mysql
-      #- ./volumes/dbdump:/docker-entrypoint-initdb.d 
- 
+      - ./volumes/dbdump:/docker-entrypoint-initdb.d 
+
   openmrs-referenceapplication:
     restart: "always"
-    image: openmrs/openmrs-reference-application-distro:qa
+    image: openmrs/openmrs-reference-application-distro:2.11.0
     depends_on:
       - openmrs-referenceapplication-mysql
     ports:
@@ -33,8 +32,8 @@ services:
       DB_HOST: openmrs-referenceapplication-mysql
       DB_USERNAME: ${MYSQL_USER:-openmrs}
       DB_PASSWORD: ${MYSQL_PASSWORD:-Admin123}
-      DB_CREATE_TABLES: 'true'
-      DB_AUTO_UPDATE: 'true'
+      DB_CREATE_TABLES: 'false'
+      DB_AUTO_UPDATE: 'false'
       MODULE_WEB_ADMIN: 'true'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
@@ -43,33 +42,6 @@ services:
       - openmrs-referenceapplication-data:/usr/local/tomcat/.OpenMRS/
       - /usr/local/tomcat/.OpenMRS/modules/ # do not store modules in data
       - /usr/local/tomcat/.OpenMRS/owa/ # do not store owa in data
-
-  streaming-binlog: 
-    #TO DO : needs to be moved to openmrs repo
-    image:  mozzy11/openmrs-fhir-analytics-streaming-binlog:v1
-    container_name: streaming-pipeline
-    depends_on:
-      - openmrs-referenceapplication
-      - openhim-core
-      - hapi-fhir-jpaserver-starter
-    network_mode: host
-    healthcheck:
-      test: "exit 0"
-    volumes:
-      - ./volumes/dbz_event_to_fhir_config.json:/deployments/dbz_event_to_fhir_config.json
-    environment:
-      - OPENMRS_URL=http://172.17.0.1:8080/openmrs
-      - OPENMRS_USERNAME=admin
-      - OPENMRS_PASSWORD=Admin123
-      - SINK_URL=http://172.17.0.1:5001/fhir
-      - SINK_USERNAME=hapi
-      - SINK_PASSWORD=Admin123
-      - JDBC_FETCH_SIZE=10000
-      - JDBC_MAX_POOL_SIZE=50
-      - JDBC_INITIAL_POOL_SIZE=10
-      - JDBC_URL=jdbc:mysql://localhost:3306/openmrs
-      - JDBC_DRIVER_CLASS=com.mysql.cj.jdbc.Driver
-      - FHIR_DEBEZIUM_CONFIG_PATH=/deployments/dbz_event_to_fhir_config.json
 
   mongo:
     container_name: openhim-mongo
